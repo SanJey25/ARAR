@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAR with GLB Models</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js"></script>
+</head>
+<body style="margin: 0; overflow: hidden;">
+    <script>
+        let scene, camera, renderer;
+        let objects = [];  // Store GLB models
+        let selectedObject = null;
+
+        function init() {
+            // Scene, Camera, Renderer
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Add AR Button
+            document.body.appendChild(THREE.ARButton.createButton(renderer));
+
+            // Load GLB Models
+            const loader = new THREE.GLTFLoader();
+
+            loader.load("obj1.glb", function(gltf) {
+                let model1 = gltf.scene;
+                model1.position.set(-0.3, 0, -1);
+                model1.scale.set(0.5, 0.5, 0.5);
+                scene.add(model1);
+                objects.push(model1);
+            });
+
+            loader.load("obj2.glb", function(gltf) {
+                let model2 = gltf.scene;
+                model2.position.set(0.3, 0, -1);
+                model2.scale.set(0.5, 0.5, 0.5);
+                scene.add(model2);
+                objects.push(model2);
+            });
+
+            // Touch Events
+            document.addEventListener("touchstart", onTouchStart, false);
+            document.addEventListener("touchmove", onTouchMove, false);
+            document.addEventListener("touchend", onTouchEnd, false);
+
+            animate();
+        }
+
+        function onTouchStart(event) {
+            let touch = event.touches[0];
+            let mouse = getTouchPosition(touch);
+            let raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            
+            let intersects = raycaster.intersectObjects(objects, true);
+            if (intersects.length > 0) {
+                selectedObject = intersects[0].object.parent; // Select the touched GLB model
+            }
+        }
+
+        function onTouchMove(event) {
+            if (!selectedObject) return;
+
+            let touch = event.touches[0];
+            let mouse = getTouchPosition(touch);
+            let raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            
+            let plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -1);
+            let intersection = new THREE.Vector3();
+
+            if (raycaster.ray.intersectPlane(plane, intersection)) {
+                selectedObject.position.x = intersection.x;
+                selectedObject.position.y = intersection.y;
+            }
+        }
+
+        function onTouchEnd() {
+            selectedObject = null;
+        }
+
+        function getTouchPosition(touch) {
+            return new THREE.Vector2(
+                (touch.clientX / window.innerWidth) * 2 - 1,
+                -(touch.clientY / window.innerHeight) * 2 + 1
+            );
+        }
+
+        function animate() {
+            renderer.setAnimationLoop(() => {
+                renderer.render(scene, camera);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
